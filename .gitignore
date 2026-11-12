@@ -1,6 +1,14 @@
+# This file excludes local build outputs and machine-specific files.
 .gradle
 **/build/
 !**/src/**/build/
+/.idea/
+/out/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
 
 # Ignore Gradle GUI config
 gradle-app.setting

@@ -1,0 +1,15 @@
+// This file defines a JDK 21 development container for Tallyhook.
+{
+  "name": "Tallyhook",
+  "image": "mcr.microsoft.com/devcontainers/java:1-21-bookworm",
+  "forwardPorts": [8080, 5432, 9092, 5672, 15672],
+  "postCreateCommand": "./gradlew --version",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "fwcd.kotlin",
+        "vscjava.vscode-java-pack"
+      ]
+    }
+  }
+}
