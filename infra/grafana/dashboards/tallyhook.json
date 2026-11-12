@@ -1,0 +1,38 @@
+{
+  "_comment": "This file provisions the starter Tallyhook dashboard in Grafana.",
+  "id": null,
+  "uid": "tallyhook-starter",
+  "title": "Tallyhook Starter",
+  "description": "Starter dashboard for the local Tallyhook API; provisioned for development.",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "API request rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count[5m]))",
+          "legendFormat": "requests/s",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    }
+  ]
+}

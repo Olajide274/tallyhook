@@ -2,6 +2,8 @@
 [versions]
 kotlin = "2.0.21"
 spring-boot = "3.3.5"
+spring-kafka = "3.2.4"
+spring-amqp = "3.1.7"
 ktlint = "12.1.1"
 detekt = "1.23.5"
 spotless = "6.25.0"
@@ -23,12 +25,13 @@ spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-
 spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation", version.ref = "spring-boot" }
 spring-boot-starter-jdbc = { module = "org.springframework.boot:spring-boot-starter-jdbc", version.ref = "spring-boot" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "spring-boot" }
-spring-kafka = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-boot" }
-spring-rabbit = { module = "org.springframework.amqp:spring-rabbit", version.ref = "spring-boot" }
+spring-kafka = { module = "org.springframework.kafka:spring-kafka", version.ref = "spring-kafka" }
+spring-rabbit = { module = "org.springframework.amqp:spring-rabbit", version.ref = "spring-amqp" }
 micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
 # Database and migration
 postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+flyway-database-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
 # Testing
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }

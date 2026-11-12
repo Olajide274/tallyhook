@@ -1,0 +1,21 @@
+# This file configures local development connections and exposes Prometheus metrics.
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/tallyhook}
+    username: ${SPRING_DATASOURCE_USERNAME:tallyhook}
+    password: ${SPRING_DATASOURCE_PASSWORD:tallyhook}
+    hikari:
+      connection-timeout: 3000
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:tallyhook}
+    password: ${SPRING_RABBITMQ_PASSWORD:tallyhook}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus

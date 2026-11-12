@@ -1,0 +1,12 @@
+# This file configures Prometheus to scrape itself and the local Tallyhook API.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+  - job_name: tallyhook-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["api:8080"]

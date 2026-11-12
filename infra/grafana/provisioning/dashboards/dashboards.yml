@@ -1,0 +1,12 @@
+# This file provisions the starter Tallyhook dashboard in Grafana.
+apiVersion: 1
+
+providers:
+  - name: Tallyhook
+    orgId: 1
+    folder: Tallyhook
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards
