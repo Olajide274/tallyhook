@@ -33,6 +33,72 @@
         "x": 0,
         "y": 0
       }
+    },
+    {
+      "id": 2,
+      "title": "Outbox unpublished backlog",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "tallyhook_outbox_unpublished_backlog",
+          "legendFormat": "events",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "id": 3,
+      "title": "Oldest unpublished event age (seconds)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "tallyhook_outbox_oldest_unpublished_age_seconds",
+          "legendFormat": "seconds",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 16,
+        "x": 8,
+        "y": 8
+      }
+    },
+    {
+      "id": 4,
+      "title": "Outbox events published",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(tallyhook_outbox_events_published_total[5m])",
+          "legendFormat": "events/s",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "h": 5,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      }
     }
   ]
 }

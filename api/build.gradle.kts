@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(project(":common"))
     implementation(project(":ledger-core"))
+    implementation(project(":outbox"))
     implementation(libs.spring.boot.starter.web)
     implementation(libs.spring.boot.starter.validation)
     implementation(libs.jackson.module.kotlin)

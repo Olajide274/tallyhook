@@ -52,14 +52,13 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    entrypoint: ["/opt/kafka/bin/kafka-topics.sh"]
     command:
-      - --bootstrap-server
-      - kafka:9092
-      - --create
-      - --if-not-exists
-      - --topic
-      - tallyhook.smoke-test
+      - >
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists
+        --topic tallyhook.smoke-test &&
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists
+        --topic tallyhook.ledger.events --partitions 3 --replication-factor 1
+    entrypoint: ["/bin/bash", "-c"]
 
   rabbitmq:
     image: rabbitmq:3-management-alpine

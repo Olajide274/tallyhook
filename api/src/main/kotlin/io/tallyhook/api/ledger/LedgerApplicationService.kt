@@ -1,6 +1,9 @@
 // This file coordinates ledger-core validation, tenant-scoped persistence, and idempotent posting.
 package io.tallyhook.api.ledger
 
+import io.tallyhook.api.outbox.LedgerEventEnvelope
+import io.tallyhook.api.outbox.OutboxEventDraft
+import io.tallyhook.api.outbox.OutboxWriter
 import io.tallyhook.ledger.Account
 import io.tallyhook.ledger.AccountId
 import io.tallyhook.ledger.AccountType
@@ -36,6 +39,7 @@ class LedgerApplicationService(
     private val accountRepository: AccountRepository,
     private val ledgerRepository: LedgerRepository,
     private val idempotencyRepository: PostgresIdempotencyRepository,
+    private val outboxWriter: OutboxWriter,
     private val clock: Clock,
 ) {
     @Transactional
@@ -51,6 +55,26 @@ class LedgerApplicationService(
         val accountId = required(AccountId.create(UUID.randomUUID().toString()))
         val account = Account.create(accountId, tenantId, type, currency)
         accountRepository.insert(account, request.name)
+        outboxWriter.append(
+            OutboxEventDraft(
+                LedgerEventEnvelope(
+                    eventId = UUID.randomUUID(),
+                    eventType = "ledger.account.created",
+                    schemaVersion = 1,
+                    tenantId = tenantId.value,
+                    aggregateType = "account",
+                    aggregateId = account.id.value,
+                    occurredAt = clock.instant(),
+                    data =
+                        mapOf(
+                            "accountId" to account.id.value,
+                            "name" to request.name,
+                            "type" to account.type.name,
+                            "currency" to account.currency.code,
+                        ),
+                ),
+            ),
+        )
         return AccountRecord(account, request.name).response()
     }
 
@@ -145,6 +169,7 @@ class LedgerApplicationService(
             )
 
         ledgerRepository.insert(transaction)
+        outboxWriter.append(transactionEvent(transaction, "ledger.transaction.posted", transaction.id.value))
         return PostedTransaction(transaction, replayed = false)
     }
 
@@ -191,6 +216,13 @@ class LedgerApplicationService(
             ledgerFailure(LedgerError.DuplicateReversal(originalId))
         }
         ledgerRepository.insert(reversal)
+        outboxWriter.append(
+            transactionEvent(
+                reversal,
+                "ledger.transaction.reversed",
+                original.id.value,
+            ),
+        )
         return PostedTransaction(reversal, replayed = false)
     }
 
@@ -222,6 +254,40 @@ class LedgerApplicationService(
         val original = ledgerRepository.find(tenantId, stored.transactionId) ?: notFound()
         return PostedTransaction(original, replayed = true)
     }
+
+    private fun transactionEvent(
+        transaction: Transaction,
+        eventType: String,
+        aggregateId: String,
+    ): OutboxEventDraft =
+        OutboxEventDraft(
+            LedgerEventEnvelope(
+                eventId = UUID.randomUUID(),
+                eventType = eventType,
+                schemaVersion = 1,
+                tenantId = transaction.tenantId.value,
+                aggregateType = "transaction",
+                aggregateId = aggregateId,
+                occurredAt = clock.instant(),
+                data =
+                    mapOf(
+                        "transactionId" to transaction.id.value,
+                        "description" to transaction.description,
+                        "effectiveAt" to transaction.effectiveAt,
+                        "reversesTransactionId" to transaction.reversesTransactionId?.value,
+                        "entries" to
+                            transaction.entries.map { entry ->
+                                mapOf(
+                                    "entryId" to entry.id.value,
+                                    "accountId" to entry.accountId.value,
+                                    "direction" to entry.direction.name,
+                                    "amountMinor" to entry.money.minorUnits,
+                                    "currency" to entry.money.currency.code,
+                                )
+                            },
+                    ),
+            ),
+        )
 }
 
 private fun canonicalHash(

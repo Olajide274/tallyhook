@@ -2,7 +2,7 @@
 
 Tallyhook is a multi-tenant double-entry ledger and reliable webhook delivery platform built with Kotlin and Spring Boot.
 
-The project has a pure Kotlin ledger core and a PostgreSQL-backed ledger HTTP API. Outbox publishing, webhooks, and reconciliation are later phases.
+The project has a pure Kotlin ledger core, a PostgreSQL-backed ledger HTTP API, and a transactional outbox with a Kafka relay. Webhooks and reconciliation are later phases.
 
 ## Requirements
 
@@ -49,7 +49,7 @@ These credentials are for local development only. Do not use them in production.
 | Prometheus UI | `http://localhost:9090` | No authentication |
 | Grafana | `http://localhost:3000` | User `admin`, password `admin` |
 
-Kafka topic auto-creation is disabled. The `kafka-init` service creates `tallyhook.smoke-test`.
+Kafka topic auto-creation is disabled. The `kafka-init` service creates `tallyhook.smoke-test` and `tallyhook.ledger.events` (3 partitions, replication factor 1 for local development).
 
 The API is assigned to the Compose profile `app`; `make up` enables this profile and starts the API with the local dependencies. To run it from Gradle instead, start the dependencies and use `make run`.
 
@@ -114,6 +114,10 @@ curl --fail --silent --show-error -X POST \
 - Cross-tenant resources return `404 Not Found` so their existence is not disclosed.
 - Ledger transaction balance, entry-count, immutability, and tenant-scoped foreign-key invariants are enforced by PostgreSQL as well as validated through `ledger-core`.
 
+## Consuming events
+
+Ledger events are published to `tallyhook.ledger.events` with at-least-once delivery. Consumers must deduplicate using the envelope's `eventId`. Ordering is guaranteed only within each tenant-and-aggregate Kafka key; there is no global ordering across aggregates. See [docs/outbox.md](docs/outbox.md).
+
 ## Project modules
 
 | Module | Responsibility |
@@ -144,7 +148,7 @@ docker compose config --quiet
 
 1. Phase 2: `ledger-core` — done
 2. Phase 3: persistence and ledger API — done
-3. Phase 4: outbox
+3. Phase 4: outbox — done
 4. Phase 5: webhooks
 5. Phase 6: reconciliation
 
