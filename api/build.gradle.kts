@@ -8,6 +8,8 @@ dependencies {
     implementation(project(":common"))
     implementation(project(":ledger-core"))
     implementation(libs.spring.boot.starter.web)
+    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.jackson.module.kotlin)
     implementation(libs.spring.boot.starter.actuator)
     implementation(libs.micrometer.registry.prometheus)
     implementation(libs.spring.boot.starter.jdbc)

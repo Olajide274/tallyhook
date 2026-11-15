@@ -2,7 +2,7 @@
 
 Tallyhook is a multi-tenant double-entry ledger and reliable webhook delivery platform built with Kotlin and Spring Boot.
 
-Phase 1 establishes the build, local infrastructure, and a small HTTP API. The ledger, outbox, webhook, and reconciliation modules are currently scaffolding for later phases.
+The project has a pure Kotlin ledger core and a PostgreSQL-backed ledger HTTP API. Outbox publishing, webhooks, and reconciliation are later phases.
 
 ## Requirements
 
@@ -55,13 +55,72 @@ The API is assigned to the Compose profile `app`; `make up` enables this profile
 
 Stop the containers with `make down`. This keeps the PostgreSQL data volume; remove it explicitly with `docker compose down -v` only when you want to delete that local data.
 
+## Ledger API
+
+The API is available under `/v1`. Send `X-Tenant-Id` on every request. Authentication is out of scope for this phase, so the tenant header is trusted for now; do not expose this API to untrusted clients.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/v1/accounts` | Create an account |
+| `GET` | `/v1/accounts/{id}` | Read an account |
+| `GET` | `/v1/accounts/{id}/balance` | Read its signed balance in minor units |
+| `POST` | `/v1/transactions` | Post an immutable transaction; requires `Idempotency-Key` |
+| `GET` | `/v1/transactions/{id}` | Read a transaction |
+| `POST` | `/v1/transactions/{id}/reversals` | Post a reversing transaction |
+| `GET` | `/v1/trial-balance` | Read debit and credit totals per currency |
+
+Amounts are integer minor units, never decimal amounts. Example workflow:
+
+```sh
+export TENANT_ID=demo-tenant
+
+ASSET_ID=$(curl --fail --silent --show-error -X POST http://localhost:8080/v1/accounts \
+  -H "X-Tenant-Id: $TENANT_ID" -H 'Content-Type: application/json' \
+  -d '{"name":"Operating cash","type":"ASSET","currency":"USD"}' | jq -r .id)
+
+REVENUE_ID=$(curl --fail --silent --show-error -X POST http://localhost:8080/v1/accounts \
+  -H "X-Tenant-Id: $TENANT_ID" -H 'Content-Type: application/json' \
+  -d '{"name":"Sales revenue","type":"REVENUE","currency":"USD"}' | jq -r .id)
+
+BODY=$(printf '{"description":"Initial sale","effectiveAt":"2026-01-01T00:00:00Z","entries":[{"accountId":"%s","direction":"DEBIT","amountMinor":1250,"currency":"USD"},{"accountId":"%s","direction":"CREDIT","amountMinor":1250,"currency":"USD"}]}' "$ASSET_ID" "$REVENUE_ID")
+
+curl --fail --silent --show-error -X POST http://localhost:8080/v1/transactions \
+  -H "X-Tenant-Id: $TENANT_ID" -H 'Idempotency-Key: sale-001' \
+  -H 'Content-Type: application/json' -d "$BODY"
+
+# Repeating the same request and key returns the original transaction with HTTP 200.
+curl --fail --silent --show-error -X POST http://localhost:8080/v1/transactions \
+  -H "X-Tenant-Id: $TENANT_ID" -H 'Idempotency-Key: sale-001' \
+  -H 'Content-Type: application/json' -d "$BODY"
+
+curl --fail --silent --show-error \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  "http://localhost:8080/v1/accounts/$ASSET_ID/balance"
+
+TRANSACTION_ID=$(curl --fail --silent --show-error -X POST http://localhost:8080/v1/transactions \
+  -H "X-Tenant-Id: $TENANT_ID" -H 'Idempotency-Key: sale-002' \
+  -H 'Content-Type: application/json' \
+  -d "$(printf '%s' "$BODY" | sed 's/Initial sale/Second sale/')" | jq -r .id)
+
+curl --fail --silent --show-error -X POST \
+  -H "X-Tenant-Id: $TENANT_ID" \
+  "http://localhost:8080/v1/transactions/$TRANSACTION_ID/reversals"
+```
+
+### Design decisions
+
+- Amounts use signed `Long` integer minor units; entries themselves must be positive and carry direction separately.
+- Idempotency is scoped by tenant and key. A stable SHA-256 request hash makes identical retries return the original result; reusing a key for another payload returns `409 Conflict`.
+- Cross-tenant resources return `404 Not Found` so their existence is not disclosed.
+- Ledger transaction balance, entry-count, immutability, and tenant-scoped foreign-key invariants are enforced by PostgreSQL as well as validated through `ledger-core`.
+
 ## Project modules
 
 | Module | Responsibility |
 | --- | --- |
 | `common` | Shared types and utilities |
 | `ledger-core` | Pure Kotlin ledger rules |
-| `api` | Runnable Spring Boot HTTP application |
+| `api` | PostgreSQL persistence and Spring Boot ledger HTTP API |
 | `outbox` | Reliable event outbox and relay |
 | `webhooks` | Reliable webhook delivery |
 | `reconciliation` | Comparing ledger records with external statements |
@@ -83,8 +142,8 @@ docker compose config --quiet
 
 ## Roadmap
 
-1. Phase 2: `ledger-core`
-2. Phase 3: persistence and ledger API
+1. Phase 2: `ledger-core` — done
+2. Phase 3: persistence and ledger API — done
 3. Phase 4: outbox
 4. Phase 5: webhooks
 5. Phase 6: reconciliation
