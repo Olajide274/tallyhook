@@ -2,8 +2,11 @@
 {
   "name": "Tallyhook",
   "image": "mcr.microsoft.com/devcontainers/java:1-21-bookworm",
+  "containerEnv": {
+    "JAVA_HOME": "/usr/local/sdkman/candidates/java/current"
+  },
   "forwardPorts": [8080, 5432, 9092, 5672, 15672],
-  "postCreateCommand": "./gradlew --version",
+  "postCreateCommand": "sdk env install && ./gradlew --version",
   "customizations": {
     "vscode": {
       "extensions": [

@@ -1,0 +1,2 @@
+# Pin the project SDKMAN JDK to Temurin 21.0.13.
+java=21.0.13.0+9-tem

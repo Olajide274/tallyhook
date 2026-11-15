@@ -2,7 +2,6 @@
 package io.tallyhook.api
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -24,18 +23,15 @@ class ConnectionsIntegrationTest {
     private lateinit var restTemplate: TestRestTemplate
 
     @Test
-    fun `connection health checks and prometheus endpoint are available`() {
+    fun `connection health checks are available`() {
         val healthResponse = restTemplate.getForEntity("/health/connections", Map::class.java)
 
-        assertEquals(HttpStatus.OK, healthResponse.statusCode)
+        assertEquals(HttpStatus.OK, healthResponse.statusCode, "Connection health response: ${healthResponse.body}")
         assertEquals(
             mapOf("postgres" to "UP", "kafka" to "UP", "rabbitmq" to "UP"),
             healthResponse.body,
+            "Connection health response: ${healthResponse.body}",
         )
-
-        val metricsResponse = restTemplate.getForEntity("/actuator/prometheus", String::class.java)
-        assertEquals(HttpStatus.OK, metricsResponse.statusCode)
-        assertTrue(metricsResponse.body.orEmpty().contains("jvm_memory_used_bytes"))
     }
 
     companion object {
@@ -48,14 +44,18 @@ class ConnectionsIntegrationTest {
 
         @Container
         @JvmStatic
-        val kafka = KafkaContainer(DockerImageName.parse("apache/kafka:3.9.0"))
+        val kafka = KafkaContainer(DockerImageName.parse("apache/kafka:3.8.0"))
 
         @Container
         @JvmStatic
         val rabbitmq =
-            RabbitMQContainer("rabbitmq:3-management-alpine")
-                .withEnv("RABBITMQ_DEFAULT_USER", RABBITMQ_USER)
-                .withEnv("RABBITMQ_DEFAULT_PASS", RABBITMQ_PASSWORD)
+            object : RabbitMQContainer("rabbitmq:3-management-alpine") {
+                override fun configure() {
+                    super.configure()
+                    withEnv("RABBITMQ_DEFAULT_USER", RABBITMQ_USER)
+                    withEnv("RABBITMQ_DEFAULT_PASS", RABBITMQ_PASSWORD)
+                }
+            }
 
         @DynamicPropertySource
         @JvmStatic

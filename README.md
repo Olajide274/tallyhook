@@ -1,4 +1,3 @@
-<!-- This file introduces Tallyhook and documents the Phase 1 development environment. -->
 # Tallyhook
 
 Tallyhook is a multi-tenant double-entry ledger and reliable webhook delivery platform built with Kotlin and Spring Boot.
@@ -9,6 +8,7 @@ Phase 1 establishes the build, local infrastructure, and a small HTTP API. The l
 
 - JDK 21
 - Docker Compose v2 with a running Docker Engine
+- `JAVA_HOME` must point to JDK 21; Gradle fails to parse the version string on newer JDKs.
 
 ## Quick start
 
@@ -24,7 +24,7 @@ Start the infrastructure and API:
 make up
 ```
 
-Check dependency connections:
+Check dependency connections. `make health` calls `/health/connections`:
 
 ```sh
 make health
@@ -74,4 +74,19 @@ make lint
 docker compose config --quiet
 ```
 
-The Testcontainers integration test is skipped when Docker is unavailable. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow.
+## Troubleshooting
+
+- **A port is already in use:** free the affected local port and try again. The stack uses `5432` (PostgreSQL), `5672` (RabbitMQ AMQP), `9092`/`29092` (Kafka), `9090` (Prometheus), `3000` (Grafana), `8080` (API), and `15672` (RabbitMQ management).
+- **Docker is not running:** start Docker Engine and verify `docker info` succeeds before running `make up` or the Testcontainers integration test.
+- **Wrong JDK version:** point `JAVA_HOME` to JDK 21 and ensure `java -version` reports Java 21. Newer JDK version strings can prevent Gradle from starting.
+- **RabbitMQ fails to start from stale volume state:** `docker compose down -v` recreates the volumes. This deletes local PostgreSQL and other persisted development data.
+
+## Roadmap
+
+1. Phase 2: `ledger-core`
+2. Phase 3: persistence and ledger API
+3. Phase 4: outbox
+4. Phase 5: webhooks
+5. Phase 6: reconciliation
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow.
