@@ -38,11 +38,13 @@ Every event is versioned JSON. Amounts are integer minor units with an ISO curre
 
 Kafka topic: `tallyhook.ledger.events`. The message key is `tenantId:aggregateId`; headers are `eventId`, `eventType`, and `schemaVersion`.
 
-## Delivery and ordering
+The relay implementation lives in the `outbox` module under `io.tallyhook.outbox`. The API opts into its Spring beans through `OutboxConfiguration`.
+
+## Claiming, delivery, and ordering
+
+In a short database transaction, the relay selects due rows with `FOR UPDATE SKIP LOCKED`, then records a claim token and lease. It only selects an event when no earlier-sequence unpublished event exists for the same tenant and aggregate. The check includes earlier rows in backoff, actively claimed, or parked at the retry limit, so later events cannot jump the queue. An expired lease makes the head event eligible for re-claim; its successors remain blocked until that event is published. A parked head therefore blocks its aggregate until an operator re-queues it, while other aggregates continue. Kafka uses the same tenant-and-aggregate key, preserving the selected sequence within that partition. There is no global ordering across aggregates or Kafka partitions.
 
 Delivery is **at least once**, not exactly once. A process can receive a broker acknowledgement and fail before storing `published_at`; after the claim lease expires, the same event can be sent again. Consumers must deduplicate using `eventId`.
-
-Per-aggregate order is preserved: the relay only claims the lowest-sequence unpublished event for a tenant and aggregate. A failed earlier event blocks later events for that aggregate, while other aggregates continue. There is no global ordering across aggregates or Kafka partitions.
 
 ## Failures and retries
 

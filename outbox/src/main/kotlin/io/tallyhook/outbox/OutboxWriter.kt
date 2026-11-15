@@ -1,5 +1,5 @@
 // This file persists event envelopes in the caller's current JDBC transaction.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper

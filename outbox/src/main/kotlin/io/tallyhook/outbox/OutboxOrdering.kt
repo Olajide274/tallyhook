@@ -1,5 +1,5 @@
 // This file defines deterministic sequence ordering for a claimed outbox batch.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 object OutboxOrdering {
     fun inSequence(events: Iterable<OutboxEvent>): List<OutboxEvent> = events.sortedBy(OutboxEvent::sequenceId)

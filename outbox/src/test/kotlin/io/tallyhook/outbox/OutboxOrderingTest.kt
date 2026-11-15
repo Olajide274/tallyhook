@@ -1,5 +1,5 @@
 // This test verifies relay batches use sequence order and only the earliest aggregate event is eligible.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test

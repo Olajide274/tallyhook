@@ -1,5 +1,5 @@
 // This test verifies event envelopes serialize minor-unit amounts as JSON integers.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule

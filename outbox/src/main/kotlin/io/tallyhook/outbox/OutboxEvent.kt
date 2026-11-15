@@ -1,5 +1,5 @@
 // This file defines the versioned JSON envelope persisted and relayed by the outbox.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import java.time.Instant
 import java.util.UUID

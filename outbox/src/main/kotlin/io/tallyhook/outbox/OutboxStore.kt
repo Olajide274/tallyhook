@@ -1,5 +1,5 @@
 // This file claims ordered due events and records relay acknowledgements or retry state.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import org.springframework.jdbc.core.simple.JdbcClient
 import org.springframework.stereotype.Repository

@@ -2,6 +2,10 @@
 package io.tallyhook.api
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.tallyhook.outbox.OutboxMetrics
+import io.tallyhook.outbox.OutboxRelay
+import io.tallyhook.outbox.OutboxStore
+import io.tallyhook.outbox.OutboxWriter
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -14,6 +18,18 @@ import org.springframework.test.web.servlet.get
 class PackageTest {
     @MockBean
     lateinit var connectionHealthService: ConnectionHealthService
+
+    @MockBean
+    lateinit var outboxMetrics: OutboxMetrics
+
+    @MockBean
+    lateinit var outboxRelay: OutboxRelay
+
+    @MockBean
+    lateinit var outboxStore: OutboxStore
+
+    @MockBean
+    lateinit var outboxWriter: OutboxWriter
 
     @Autowired
     private lateinit var mockMvc: MockMvc

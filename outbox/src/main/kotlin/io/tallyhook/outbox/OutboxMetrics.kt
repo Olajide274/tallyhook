@@ -1,5 +1,5 @@
 // This file registers relay counters and database-backed backlog gauges.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry

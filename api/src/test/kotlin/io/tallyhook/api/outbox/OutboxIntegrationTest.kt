@@ -9,6 +9,14 @@ import io.tallyhook.api.ledger.LedgerApiException
 import io.tallyhook.api.ledger.LedgerApplicationService
 import io.tallyhook.api.ledger.TransactionResponse
 import io.tallyhook.api.ledger.response
+import io.tallyhook.outbox.LedgerEventEnvelope
+import io.tallyhook.outbox.OutboxEventDraft
+import io.tallyhook.outbox.OutboxMetrics
+import io.tallyhook.outbox.OutboxProperties
+import io.tallyhook.outbox.OutboxRelay
+import io.tallyhook.outbox.OutboxRow
+import io.tallyhook.outbox.OutboxStore
+import io.tallyhook.outbox.OutboxWriter
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -18,7 +26,9 @@ import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -359,9 +369,85 @@ class OutboxIntegrationTest {
     }
 
     @Test
-    fun `maximum attempts leaves event queryable and operator can requeue it`() {
+    fun `earlier event in backoff blocks a later due event`() {
+        val tenant = newTenant()
+        val first = appendTestEvent(tenant, "backoff-aggregate", "ledger.transaction.posted")
+        val second = appendTestEvent(tenant, "backoff-aggregate", "ledger.transaction.reversed")
+        jdbcTemplate.update(
+            "UPDATE outbox_events SET next_attempt_at = now() + INTERVAL '1 hour' WHERE id = ?",
+            first,
+        )
+
+        assertTrue(
+            store
+                .claimDueBatch(10, outboxProperties.maxAttempts, outboxProperties.claimLease)
+                .isEmpty(),
+        )
+        assertEquals(
+            0,
+            jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM outbox_events WHERE id = ? AND claim_token IS NOT NULL",
+                Int::class.java,
+                second,
+            ),
+        )
+    }
+
+    @Test
+    fun `active claim blocks a later event for the same aggregate`() {
+        val tenant = newTenant()
+        val first = appendTestEvent(tenant, "claimed-aggregate", "ledger.transaction.posted")
+        val second = appendTestEvent(tenant, "claimed-aggregate", "ledger.transaction.reversed")
+
+        val firstClaim = store.claimDueBatch(10, outboxProperties.maxAttempts, outboxProperties.claimLease).single()
+
+        assertEquals(first, firstClaim.eventId)
+        assertTrue(
+            store
+                .claimDueBatch(10, outboxProperties.maxAttempts, outboxProperties.claimLease)
+                .isEmpty(),
+        )
+        assertEquals(
+            0,
+            jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM outbox_events WHERE id = ? AND claim_token IS NOT NULL",
+                Int::class.java,
+                second,
+            ),
+        )
+    }
+
+    @Test
+    fun `expired claim is reclaimed before a later event`() {
+        val tenant = newTenant()
+        val first = appendTestEvent(tenant, "expired-claim-aggregate", "ledger.transaction.posted")
+        val second = appendTestEvent(tenant, "expired-claim-aggregate", "ledger.transaction.reversed")
+        val initialClaim = store.claimDueBatch(10, outboxProperties.maxAttempts, outboxProperties.claimLease).single()
+        jdbcTemplate.update(
+            "UPDATE outbox_events SET claimed_until = now() - INTERVAL '1 second' WHERE id = ?",
+            first,
+        )
+
+        val reclaimed = store.claimDueBatch(10, outboxProperties.maxAttempts, outboxProperties.claimLease).single()
+
+        assertEquals(first, initialClaim.eventId)
+        assertEquals(first, reclaimed.eventId)
+        assertNotEquals(initialClaim.claimToken, reclaimed.claimToken)
+        assertEquals(
+            0,
+            jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM outbox_events WHERE id = ? AND claim_token IS NOT NULL",
+                Int::class.java,
+                second,
+            ),
+        )
+    }
+
+    @Test
+    fun `maximum attempts parks the aggregate until an operator requeues it`() {
         val tenant = newTenant()
         val eventId = appendTestEvent(tenant, "dead-letter", "ledger.transaction.posted")
+        val laterEventId = appendTestEvent(tenant, "dead-letter", "ledger.transaction.reversed")
         jdbcTemplate.update(
             "UPDATE outbox_events SET attempts = ? WHERE tenant_id = ? AND id = ?",
             outboxProperties.maxAttempts,
@@ -371,14 +457,18 @@ class OutboxIntegrationTest {
 
         assertEquals(0, relay.pollOnce())
         assertEquals(1L, store.eventsPastMaxAttempts(outboxProperties.maxAttempts))
+        assertNull(outboxRow(tenant, laterEventId.toString()).publishedAt)
         assertTrue(store.requeue(tenant, eventId))
         assertEquals(0, outboxRow(tenant, eventId.toString()).attempts)
         assertEquals(1, relay.pollOnce())
         assertNotNull(outboxRow(tenant, eventId.toString()).publishedAt)
+        assertNull(outboxRow(tenant, laterEventId.toString()).publishedAt)
+        assertEquals(1, relay.pollOnce())
+        assertNotNull(outboxRow(tenant, laterEventId.toString()).publishedAt)
     }
 
     @Test
-    fun `database blocks delete and payload mutation`() {
+    fun `database blocks deletion and event content mutation but allows relay state changes`() {
         val tenant = newTenant()
         val eventId = appendTestEvent(tenant, "immutable-event", "ledger.transaction.posted")
 
@@ -392,7 +482,47 @@ class OutboxIntegrationTest {
                 eventId,
             )
         }
+        assertThrows(Exception::class.java) {
+            jdbcTemplate.update(
+                "UPDATE outbox_events SET event_type = 'changed' WHERE tenant_id = ? AND id = ?",
+                tenant,
+                eventId,
+            )
+        }
+        assertThrows(Exception::class.java) {
+            jdbcTemplate.update(
+                "UPDATE outbox_events SET tenant_id = 'other-tenant' WHERE tenant_id = ? AND id = ?",
+                tenant,
+                eventId,
+            )
+        }
+        assertThrows(Exception::class.java) {
+            jdbcTemplate.update(
+                "UPDATE outbox_events SET aggregate_id = 'changed' WHERE tenant_id = ? AND id = ?",
+                tenant,
+                eventId,
+            )
+        }
         assertNotNull(outboxRow(tenant, eventId.toString()))
+        assertEquals(
+            1,
+            jdbcTemplate.update(
+                """
+                UPDATE outbox_events
+                SET published_at = now(), attempts = 1, last_error = 'test failure',
+                    next_attempt_at = now() + INTERVAL '1 minute',
+                    claim_token = 'cae9c742-37fa-4c33-9dc0-e6fd815b6d02',
+                    claimed_until = now() + INTERVAL '1 minute'
+                WHERE tenant_id = ? AND id = ?
+                """.trimIndent(),
+                tenant,
+                eventId,
+            ),
+        )
+        val updated = outboxRow(tenant, eventId.toString())
+        assertNotNull(updated.publishedAt)
+        assertEquals(1, updated.attempts)
+        assertEquals("test failure", updated.lastError)
     }
 
     private fun createAccounts(tenant: String): Pair<String, String> {

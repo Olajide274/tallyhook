@@ -1,5 +1,5 @@
 // This file binds configurable polling, retry, lease, and Kafka delivery settings.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration

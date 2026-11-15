@@ -1,5 +1,5 @@
 // This file relays committed outbox rows at least once; consumers must deduplicate eventId.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.header.internals.RecordHeader

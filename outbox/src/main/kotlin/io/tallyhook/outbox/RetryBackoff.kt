@@ -1,5 +1,5 @@
 // This file calculates capped exponential retry delays with bounded jitter.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import java.time.Duration
 import kotlin.math.min

@@ -1,5 +1,5 @@
 // This test verifies capped exponential backoff and jitter boundaries.
-package io.tallyhook.api.outbox
+package io.tallyhook.outbox
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
