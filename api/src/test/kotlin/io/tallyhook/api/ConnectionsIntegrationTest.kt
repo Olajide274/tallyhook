@@ -68,6 +68,7 @@ class ConnectionsIntegrationTest {
             registry.add("spring.rabbitmq.port", rabbitmq::getAmqpPort)
             registry.add("spring.rabbitmq.username") { RABBITMQ_USER }
             registry.add("spring.rabbitmq.password") { RABBITMQ_PASSWORD }
+            registry.add("tallyhook.outbox.enabled") { false }
         }
     }
 }

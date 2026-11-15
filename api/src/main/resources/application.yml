@@ -14,17 +14,46 @@ spring:
       connection-timeout: 3000
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        retries: 5
+        max.in.flight.requests.per.connection: 5
+        max.block.ms: 5000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 15000
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
     port: ${SPRING_RABBITMQ_PORT:5672}
     username: ${SPRING_RABBITMQ_USERNAME:tallyhook}
     password: ${SPRING_RABBITMQ_PASSWORD:tallyhook}
+  task:
+    scheduling:
+      shutdown:
+        await-termination: true
+        await-termination-period: 10m
 
 management:
   endpoints:
     web:
       exposure:
         include: health,prometheus
+
+tallyhook:
+  outbox:
+    enabled: ${TALLYHOOK_OUTBOX_ENABLED:true}
+    topic: ${TALLYHOOK_OUTBOX_TOPIC:tallyhook.ledger.events}
+    poll-interval: ${TALLYHOOK_OUTBOX_POLL_INTERVAL:1000}
+    initial-delay: ${TALLYHOOK_OUTBOX_INITIAL_DELAY:1000}
+    batch-size: ${TALLYHOOK_OUTBOX_BATCH_SIZE:50}
+    send-timeout: ${TALLYHOOK_OUTBOX_SEND_TIMEOUT:10s}
+    max-attempts: ${TALLYHOOK_OUTBOX_MAX_ATTEMPTS:10}
+    base-backoff: ${TALLYHOOK_OUTBOX_BASE_BACKOFF:1s}
+    max-backoff: ${TALLYHOOK_OUTBOX_MAX_BACKOFF:5m}
+    backoff-jitter: ${TALLYHOOK_OUTBOX_BACKOFF_JITTER:0.2}
+    claim-lease: ${TALLYHOOK_OUTBOX_CLAIM_LEASE:1m}
+
 
 server:
   error:
